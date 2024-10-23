@@ -1,0 +1,22 @@
+[
+    {
+        "ticketType": "一日票",
+        "price": 320
+    },
+    {
+        "ticketType": "雙日票",
+        "price": 640
+    },
+    {
+        "ticketType": "優待票",
+        "price": 120
+    },
+    {
+        "ticketType": "敬老票",
+        "price": 120
+    },
+    {
+        "ticketType": "學生票",
+        "price": 200
+    }
+]
