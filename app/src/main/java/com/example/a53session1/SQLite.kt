@@ -20,12 +20,12 @@ interface AccountDao {
     @Insert
     suspend fun insertAccount(account: Account)
 
-    @Query("SELECT EXISTS(SELECT 1 FROM account_table WHERE usermail = :usermail AND password = :password)")
-    suspend fun isAccExists(usermail: String,password: String): Boolean
+    @Query("SELECT * FROM account_table WHERE usermail=:usermail AND password=:password")
+     fun isAccExists(usermail: String,password: String): Boolean
 
 }
 
-@Database(entities = [Account::class], version = 1)
+@Database(entities = [Account::class], version = 3)
 abstract class AccountDatabase : RoomDatabase() {
     abstract fun accountDao(): AccountDao
     companion object {

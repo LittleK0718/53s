@@ -59,7 +59,7 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2023.03.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.material:material:1.4.0")
+    implementation("androidx.compose.material:material:1.5.0")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material:material-icons-extended:1.5.1")
@@ -90,4 +90,9 @@ dependencies {
 
     // Generative AI library
     implementation(libs.generativeai)
+
+
+
+    implementation ("androidx.compose.ui:ui-tooling-preview:1.5.0")
+    implementation ("androidx.compose.runtime:runtime-livedata:1.5.0")
 }

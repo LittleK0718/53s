@@ -2,6 +2,7 @@ package com.example.a53session1
 
 import android.annotation.SuppressLint
 import android.content.Context
+import androidx.compose.runtime.Composable
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import android.os.Bundle
@@ -27,7 +28,6 @@ import androidx.compose.material.rememberScaffoldState
 import androidx.compose.material.Button
 import androidx.compose.material.TextButton
 import androidx.compose.material.TopAppBar
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -56,6 +56,7 @@ import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBackIos
+import androidx.compose.material.icons.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Square
 import androidx.compose.runtime.LaunchedEffect
@@ -78,6 +79,7 @@ import java.io.InputStreamReader
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -115,7 +117,7 @@ data class FirstArt(
 
 fun readJsonFromAssets(context: Context): List<FirstArt>{
     // 使用 assets.open() 讀取檔案
-    val inputStream = context.assets.open("firstArt.json")
+    val inputStream = context.assets.open("first.json")
 
     // 使用 InputStreamReader 來讀取 input stream 並轉換成字符串
     val reader = InputStreamReader(inputStream)
@@ -155,6 +157,19 @@ data class Ticket(
     val ticketType: String,
     val price: Int
 )
+class AccountViewModel(private val accountDao: AccountDao) : ViewModel() {
+    // 使用 MutableState<Boolean> 來正確地保持 UI 狀態
+    private val _accountExists = mutableStateOf(false)
+    val accountExists: MutableState<Boolean> = _accountExists
+
+    // 檢查帳號是否存在
+    fun checkAccountExists(usermail: String,password: String) {
+        viewModelScope.launch {
+            _accountExists.value = accountDao.isAccExists(usermail,password)
+        }
+    }
+}
+
 
 @Composable
 fun nav(announcements: List<MediaCenter>,tic:List<Ticket>) {
@@ -223,6 +238,61 @@ fun nav(announcements: List<MediaCenter>,tic:List<Ticket>) {
                         color = Color.Black
                     )
                 }
+
+                Column(Modifier.offset(x=20.dp)) {
+                    TextButton(onClick = {
+                        scope.launch {
+                            scaffoldState.drawerState.close()
+                        }
+                        navController.navigate("webview/展館介紹.html")
+                    }
+                    )
+                    {
+                        Icon(
+                            Icons.Default.ArrowForwardIos,
+                            contentDescription = null,
+                            tint = Color(0xFFf11617F),
+                            modifier = Modifier.size(20.dp).border(
+                                BorderStroke(2.dp, Color(0xFFf11617F)),
+                                RoundedCornerShape(12.dp)
+                            )
+                        )
+                        Text(
+                            "展館介紹",
+                            modifier = Modifier,
+                            fontSize = 18.sp,
+                            color = Color.Black,
+
+                        )
+                    }
+
+                    TextButton(onClick = {
+                        scope.launch {
+                            scaffoldState.drawerState.close()
+                        }
+                        navController.navigate("webview/經營者.html")
+                    }
+                    )
+                    {
+                        Icon(
+                            Icons.Default.ArrowForwardIos,
+                            contentDescription = null,
+                            tint = Color(0xFFf11617F),
+                            modifier = Modifier.border(
+                                BorderStroke(2.dp, Color(0xFFf11617F)),
+                                RoundedCornerShape(12.dp)
+                            ).size(20.dp)
+                        )
+                        Text(
+                            "經營者",
+                            modifier = Modifier,
+                            fontSize = 18.sp,
+                            color = Color.Black
+                        )
+                    }
+
+                }
+
 
                 TextButton(onClick = {
                     scope.launch {
@@ -313,7 +383,7 @@ fun nav(announcements: List<MediaCenter>,tic:List<Ticket>) {
             ) {
                 NavHost(
                     navController = navController,
-                    startDestination = "Artscreen"
+                    startDestination = "home"
                 ) {
                     composable("home") {
                         homeScreen(navController, announcements)
@@ -348,6 +418,11 @@ fun nav(announcements: List<MediaCenter>,tic:List<Ticket>) {
                   composable("check"){
                       check()
                   }
+                    composable("webview/{htmlFile}") { backStackEntry ->
+                        val htmlFile = backStackEntry.arguments?.getString("htmlFile")
+                        WebViewScreen(htmlFile)
+                    }
+
                 }
             }
         }
@@ -370,7 +445,7 @@ fun nav2(announcements: List<MediaCenter>,accountDao:AccountDao,tic:List<Ticket>
          viewModel: AccountViewModel = viewModel(factory = AccountViewModelFactory(accountDao))){
     val navController2 = rememberNavController() // 建立 navController
 
-    NavHost(navController = navController2,startDestination = "navhost2")
+    NavHost(navController = navController2,startDestination = "acclogin")
     {
         composable("navhost2"){
             nav(announcements,tic)
@@ -379,8 +454,7 @@ fun nav2(announcements: List<MediaCenter>,accountDao:AccountDao,tic:List<Ticket>
             AccountInputScreen(accountDao,navController2)
         }
         composable("acclogin"){
-            Accountlogin(navController2,accountDao
-              )
+            Accountlogin(navController2,accountDao)
         }
         composable("wait"){
             delay(navController2)
@@ -396,7 +470,7 @@ fun nav2(announcements: List<MediaCenter>,accountDao:AccountDao,tic:List<Ticket>
 @SuppressLint("SuspiciousIndentation")
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun homeScreen(navController: NavController, announcements: List<MediaCenter>) {
+fun homeScreen(navController: NavController, jsonlist: List<MediaCenter>) {
     var num1 by remember { mutableStateOf(false) }
 
     val list = listOf(
@@ -438,14 +512,14 @@ fun homeScreen(navController: NavController, announcements: List<MediaCenter>) {
                 .fillMaxSize()
                 .offset(y = 220.dp, x = 10.dp)
         ) {
-            items(announcements) { announcement ->
+            items(jsonlist) { abc ->
                 Row {
                     Column(Modifier.offset(y = 12.dp)) {
                         Text(
-                            text = announcement.dateTime
+                            text = abc.dateTime
                         )
                         Text(
-                            text = announcement.hall.joinToString(", "),
+                            text = abc.hall.joinToString(", "),
                             textAlign = TextAlign.Center,
                             color = Color(0xFFf1AAB9F)
                         )
@@ -453,16 +527,16 @@ fun homeScreen(navController: NavController, announcements: List<MediaCenter>) {
                     }
 
                     Text(
-                        text = AnnotatedString(announcement.title),
+                        text = AnnotatedString(abc.title),
                         modifier = Modifier
                             .padding(16.dp)
                             .clickable(onClick = {
                                 navController.navigate(
-                                    "detail/${announcement.title}/${announcement.dateTime}/${
-                                        announcement.hall.joinToString(
+                                    "detail/${abc.title}/${abc.dateTime}/${
+                                        abc.hall.joinToString(
                                             ", "
                                         )
-                                    }/${announcement.content}"
+                                    }/${abc.content}"
                                 )
                             }),
                         style = TextStyle(
@@ -596,7 +670,6 @@ fun Artscreen(context: Context){
         artinfo2.value = readJsonFromAssets2(context)
     }
 
-
     Button(
         onClick = {
             button1Pressed.value = true
@@ -638,51 +711,15 @@ fun Artscreen(context: Context){
         )
     }
 
-
-    artinfo.value?.let { artList ->
-        LazyColumn(modifier = Modifier
-            .fillMaxSize()
-            .padding(top = 50.dp)) {
-            items(artList) { art ->
-                if (button1Pressed.value) {
-//                    Column(
-//                        verticalArrangement = Arrangement.spacedBy(5.dp),
-//                        modifier = Modifier.padding(7.dp)
-//                    ) {
-                        Text(text = " ${art.title}", fontSize = 20.sp, fontWeight = FontWeight.Bold )
-
-                        Text(text = "${art.content}", maxLines = 6, modifier = Modifier.padding(end = 200.dp) )
-
-                        val resourceId = context.resources.getIdentifier(art.image.replace(".jpeg", ""), "drawable", context.packageName)
-
-                        // 顯示圖片
-                        Image(
-                            painter = painterResource(id = resourceId),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(200.dp)
-                                .offset(x = 180.dp, y = -150.dp) // 您可以調整圖片大小
-                        )
-
-//                    }
-                }
-            }
-        }
-    } ?: run {
-        Text("Loading...")
-    }
-
-    artinfo2.value?.let { artList ->
-        LazyColumn(modifier = Modifier
-            .fillMaxSize()
-            .padding(top = 50.dp)) {
-            items(artList) {
-                art ->
-                if (button2Pressed.value) {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(5.dp),
-                        modifier = Modifier.padding(7.dp)
-                    ) {
+    when {
+        button1Pressed.value -> {
+            artinfo.value?.let { artList ->
+                LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 55.dp)) {
+                    items(artList) { art ->
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(5.dp),
+                            modifier = Modifier.padding(5.dp)
+                        ) {
                         Text(text = " ${art.title}", fontSize = 20.sp, fontWeight = FontWeight.Bold )
 
                         Text(text = art.content, maxLines = 6, modifier = Modifier.padding(end = 200.dp) )
@@ -699,23 +736,52 @@ fun Artscreen(context: Context){
                         )
 
                     }
+                    }
                 }
-            }
-//            }
+            } ?: Text("Loading...")
         }
-    } ?: run {
-        Text("Loading...")
+        button2Pressed.value -> {
+            artinfo2.value?.let { artList ->
+                LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 55.dp)) {
+                    items(artList) { art ->
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(5.dp),
+                            modifier = Modifier.padding(7.dp)
+                        ) {
+                        Text(text = " ${art.title}", fontSize = 20.sp, fontWeight = FontWeight.Bold )
+
+                        Text(text = art.content, maxLines = 6, modifier = Modifier.padding(end = 200.dp) )
+
+                        val resourceId = context.resources.getIdentifier(art.image.replace(".jpeg", ""), "drawable", context.packageName)
+
+                        // 顯示圖片
+                        Image(
+                            painter = painterResource(id = resourceId),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(200.dp)
+                                .offset(x = 180.dp, y = -150.dp) // 您可以調整圖片大小
+                        )
+
+                    }
+                    }
+                }
+            } ?: Text("Loading...")
+        }
     }
+
 
 }
 
 
+@OptIn(DelicateCoroutinesApi::class)
 @Composable
 fun AccountInputScreen(accountDao: AccountDao,navController: NavController) {
     var usermail by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordTure by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
+
     Column(
         modifier = Modifier
             .padding(16.dp)
@@ -817,6 +883,7 @@ fun AccountInputScreen(accountDao: AccountDao,navController: NavController) {
         )
         Spacer(modifier = Modifier.height(100.dp))
 
+
         Button(
             onClick = {
                 when {
@@ -835,18 +902,17 @@ fun AccountInputScreen(accountDao: AccountDao,navController: NavController) {
                     password != passwordTure -> {
                         errorMessage = "密碼不符！"
                     }
-//                    isEmailRegistered(accountDao, usermail) -> {
-//                        errorMessage = "此 E-mail 已註冊過！"
-//                    }
+                    accountDao.isAccExists(usermail,password) -> {
+                        errorMessage = "此 E-mail 已註冊過！"
+                    }
                     else -> {
+
                         // 所有檢查通過，插入帳號到資料庫
                         val newAccount = Account(usermail = usermail, password = password)
                         GlobalScope.launch {
                             accountDao.insertAccount(newAccount)
                         }
-
                         navController.navigate("acclogin")
-
                     }
                 }
             },
@@ -883,6 +949,9 @@ fun AccountInputScreen(accountDao: AccountDao,navController: NavController) {
     }
 }
 
+
+
+
 // 驗證 E-mail 格式的函數
 fun isValidEmail(email: String): Boolean {
     val emailRegex = Regex("^[A-Za-z0-9+_.-]+@(.+)$")
@@ -908,21 +977,11 @@ fun isValidphone(phone:String):Boolean{
 //}
 
 
-class AccountViewModel(private val accountDao: AccountDao) : ViewModel() {
-    // 使用 MutableState<Boolean> 來正確地保持 UI 狀態
-    private val _accountExists = mutableStateOf(false)
-    val accountExists: MutableState<Boolean> = _accountExists
-
-    // 檢查帳號是否存在
-    fun checkAccountExists(usermail: String,password: String) {
-        viewModelScope.launch {
-            _accountExists.value = accountDao.isAccExists(usermail,password)
-        }
-    }
-}
 
 
 
+
+@OptIn(DelicateCoroutinesApi::class)
 @Composable
 fun Accountlogin(navController: NavController,accountDao: AccountDao){
     var usermail by remember { mutableStateOf("") }
